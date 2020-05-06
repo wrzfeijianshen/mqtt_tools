@@ -26,10 +26,20 @@ CONFIG(debug, debug|release) {
 
 
 SOURCES += main.cpp\
-        widget.cpp
+        widget.cpp \
+    mqttEngine.cpp
 
-HEADERS  += widget.h
+HEADERS  += widget.h \
+    mqttEngine.h
 
 FORMS    += widget.ui
 
 
+
+win32: LIBS += -L$$PWD/3rd/eclipse_paho_mqtt_c_win32/lib/ -lpaho-mqtt3a
+win32: LIBS += -L$$PWD/3rd/eclipse_paho_mqtt_c_win32/lib/ -lpaho-mqtt3as
+win32: LIBS += -L$$PWD/3rd/eclipse_paho_mqtt_c_win32/lib/ -lpaho-mqtt3c
+win32: LIBS += -L$$PWD/3rd/eclipse_paho_mqtt_c_win32/lib/ -lpaho-mqtt3cs
+
+INCLUDEPATH += $$PWD/3rd/eclipse_paho_mqtt_c_win32/include
+DEPENDPATH += $$PWD/3rd/eclipse_paho_mqtt_c_win32/include

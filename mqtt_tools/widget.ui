@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Widget</string>
+   <string>MQTT测试工具-飞剑神</string>
   </property>
   <widget class="QTabWidget" name="tabWidget">
    <property name="geometry">
@@ -225,8 +225,8 @@
        <rect>
         <x>360</x>
         <y>20</y>
-        <width>71</width>
-        <height>21</height>
+        <width>56</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="sizeAdjustPolicy">
@@ -349,7 +349,7 @@
         <x>450</x>
         <y>19</y>
         <width>56</width>
-        <height>31</height>
+        <height>20</height>
        </rect>
       </property>
       <property name="sizeAdjustPolicy">

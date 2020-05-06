@@ -1,5 +1,6 @@
 #include "widget.h"
 #include "ui_widget.h"
+#include "mqttEngine.h"
 
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
@@ -11,4 +12,12 @@ Widget::Widget(QWidget *parent) :
 Widget::~Widget()
 {
     delete ui;
+}
+
+void Widget::on_pushButton_clicked()
+{
+    // 连接服务器
+    CMqttEngine mqtt;
+    mqtt.connect();
+
 }
