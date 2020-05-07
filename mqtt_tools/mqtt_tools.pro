@@ -27,10 +27,14 @@ CONFIG(debug, debug|release) {
 
 SOURCES += main.cpp\
         widget.cpp \
-    mqttEngine.cpp
+    mqttEngine.cpp \
+    config.cpp \
+    mqttConfig.cpp
 
 HEADERS  += widget.h \
-    mqttEngine.h
+    mqttEngine.h \
+    config.h \
+    mqttConfig.h
 
 FORMS    += widget.ui
 

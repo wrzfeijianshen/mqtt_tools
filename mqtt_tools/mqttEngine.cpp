@@ -1,20 +1,16 @@
 #include "mqttEngine.h"
 #include <iostream>
-#include <mqtt/MQTTClient.h>
-
 using namespace std;
 
-#define ADDRESS     "tcp://111.111.111.10:1883"
-#define CLIENTID    "ExampleClientPub"
-#define TOPIC       "/test/one"
-#define PAYLOAD     "Hello World!"
 #define QOS         1
 #define TIMEOUT     10000L
 
 
-CMqttEngine::CMqttEngine()
+CMqttEngine::CMqttEngine():
+    m_pConfig(nullptr)
 {
-
+    m_pConfig = new CMqttConfig();
+    m_pConfig->InitINIConfig();
 }
 
 CMqttEngine::~CMqttEngine()
@@ -24,45 +20,44 @@ CMqttEngine::~CMqttEngine()
 
 void CMqttEngine::connect()
 {
-    MQTTClient client;
-       MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-       MQTTClient_message pubmsg = MQTTClient_message_initializer;
-       MQTTClient_deliveryToken token;
-       int rc;
+    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+    MQTTClient_message pubmsg = MQTTClient_message_initializer;
+    MQTTClient_deliveryToken token;
+    int rc;
+    MQTTBroker broker = m_pConfig->GetBroker();
+    if ((rc = MQTTClient_create(&m_Client, broker.addr.toStdString().c_str(), broker.id.toStdString().c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
+    {
+        printf("Failed to create client, return code %d\n", rc);
+        exit(EXIT_FAILURE);
+    }
 
-       if ((rc = MQTTClient_create(&client, ADDRESS, CLIENTID,
-           MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
-       {
-            printf("Failed to create client, return code %d\n", rc);
-            exit(EXIT_FAILURE);
-       }
+    conn_opts.keepAliveInterval = 20;
+    conn_opts.cleansession = 1;
+    if ((rc = MQTTClient_connect(m_Client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+    {
+        printf("Failed to connect, return code %d\n", rc);
+        exit(EXIT_FAILURE);
+    }
+    char* plyload = "hello world";
 
-       conn_opts.keepAliveInterval = 20;
-       conn_opts.cleansession = 1;
-       if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
-       {
-           printf("Failed to connect, return code %d\n", rc);
-           exit(EXIT_FAILURE);
-       }
+    pubmsg.payload = plyload;
+    pubmsg.payloadlen = (int)strlen(plyload);
+    pubmsg.qos = QOS;
+    pubmsg.retained = 0;
+    if ((rc = MQTTClient_publishMessage(m_Client, broker.topic.toStdString().c_str(), &pubmsg, &token)) != MQTTCLIENT_SUCCESS)
+    {
+        printf("Failed to publish message, return code %d\n", rc);
+        exit(EXIT_FAILURE);
+    }
 
-       pubmsg.payload = PAYLOAD;
-       pubmsg.payloadlen = (int)strlen(PAYLOAD);
-       pubmsg.qos = QOS;
-       pubmsg.retained = 0;
-       if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS)
-       {
-            printf("Failed to publish message, return code %d\n", rc);
-            exit(EXIT_FAILURE);
-       }
+    printf("Waiting for up to %d seconds for publication of %s\n"
+           "on topic %s for client with ClientID: %s\n",
+           (int)(TIMEOUT/1000), plyload, broker.topic.toStdString().c_str(), broker.id.toStdString());
+    rc = MQTTClient_waitForCompletion(m_Client, token, TIMEOUT);
+    printf("Message with delivery token %d delivered\n", token);
 
-       printf("Waiting for up to %d seconds for publication of %s\n"
-               "on topic %s for client with ClientID: %s\n",
-               (int)(TIMEOUT/1000), PAYLOAD, TOPIC, CLIENTID);
-       rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-       printf("Message with delivery token %d delivered\n", token);
-
-       if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
-           printf("Failed to disconnect, return code %d\n", rc);
-       MQTTClient_destroy(&client);
+    if ((rc = MQTTClient_disconnect(m_Client, 10000)) != MQTTCLIENT_SUCCESS)
+        printf("Failed to disconnect, return code %d\n", rc);
+    MQTTClient_destroy(&m_Client);
 }
 
