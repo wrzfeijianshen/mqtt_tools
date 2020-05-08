@@ -6,16 +6,22 @@
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget),
-    m_pMqtt(nullptr)
+    m_pMqtt(nullptr),
+    m_bConnect(false),
+    m_bSubscribe(false)
 {
     ui->setupUi(this);
 
-Init();
+    Init();
 }
 
 Widget::~Widget()
 {
     delete ui;
+}
+void Widget::message(QString str)
+{
+    qDebug() << str;
 }
 
 void Widget::Init()
@@ -23,6 +29,9 @@ void Widget::Init()
     if(m_pMqtt == nullptr)
     {
         m_pMqtt = new CMqttEngine();
+
+
+//        connect(CMqttEngine,&CMqttEngine::message2,this,Widget::message);
         m_Broker = m_pMqtt->GetConfig()->GetBroker();
         ui->addr_lineEdit->setText(m_Broker.addr);
         ui->port_lineEdit->setText(QString::number(m_Broker.port));
@@ -36,8 +45,24 @@ void Widget::Init()
 
 void Widget::on_pushButton_clicked()
 {
-    // 连接服务器
-    m_pMqtt->connect();
+    if(m_bConnect)
+    {
+        ui->pushButton->setText("连接");
+        m_pMqtt->Destroy();
+    }
+    else
+    {
+        // 连接服务器
+        m_pMqtt->GetConfig()->SetBroker(m_Broker);
+        int ret =  m_pMqtt->Connect();
+        if(ret != 0)
+            qDebug() <<"m_pMqtt 连接失败 ";
+        else
+        {
+            m_bConnect = true;
+            ui->pushButton->setText("断开连接");
+        }
+    }
 
 }
 
@@ -82,4 +107,38 @@ void Widget::on_public_topic_lineEdit_editingFinished()
 {
     m_Broker.publish_topic = ui->public_topic_lineEdit->text();
     m_pMqtt->GetConfig()->SetBroker(m_Broker);
+}
+
+void Widget::on_pushButton_2_clicked()
+{
+    int ret = 0;
+    // 订阅主题和取消订阅
+    if(m_bSubscribe)
+    {
+        m_bSubscribe = false;
+        ret = m_pMqtt->SetUnSubscribe(m_Broker.topic);
+        if(ret != 0)
+        {
+            qDebug() << "订阅不存在 " << ret;
+        }
+
+        ui->pushButton_2->setText("订阅");
+    }
+    else
+    {
+        int index =  ui->comboBox->currentIndex();
+        qDebug() << "index : "<<index;
+        // 连接服务器
+        ret = m_pMqtt->SetSubscribe(m_Broker.topic,index);
+        if(ret != 0)
+        {
+            qDebug() <<"m_pMqtt 连接失败 ";
+            ui->pushButton_2->setText("订阅");
+        }
+        else
+        {
+            m_bSubscribe = true;
+            ui->pushButton_2->setText("取消订阅");
+        }
+    }
 }

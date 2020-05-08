@@ -1,6 +1,8 @@
 #ifndef CMQTTCONFIG_H
 #define CMQTTCONFIG_H
-
+#if _MSC_VER >=1600 //VS2010版本号是1600，强制MSVC编译器采用UTF-8编码生成可执行文件
+#pragma execution_character_set("utf-8")
+#endif
 #include "config.h"
 
 typedef struct tMQTTBroker

@@ -18,6 +18,9 @@ public:
     ~Widget();
 public:
     void Init();
+public:
+    static void message(QString str);
+
 private slots:
     void on_pushButton_clicked();
 
@@ -35,10 +38,16 @@ private slots:
 
     void on_public_topic_lineEdit_editingFinished();
 
+    void on_pushButton_2_clicked();
+
 private:
     Ui::Widget *ui;
     CMqttEngine *m_pMqtt;
     MQTTBroker m_Broker;
+
+private:
+    bool m_bConnect;// Á¬½Ó
+    bool m_bSubscribe;// ¶©ÔÄ
 };
 
 #endif // WIDGET_H
