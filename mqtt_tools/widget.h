@@ -18,8 +18,9 @@ public:
     ~Widget();
 public:
     void Init();
-public:
-    static void message(QString str);
+
+private slots:
+    void msgArrvd(CMqttMessage* mess);
 
 private slots:
     void on_pushButton_clicked();
@@ -39,6 +40,8 @@ private slots:
     void on_public_topic_lineEdit_editingFinished();
 
     void on_pushButton_2_clicked();
+
+    void on_pushButton_6_clicked();
 
 private:
     Ui::Widget *ui;

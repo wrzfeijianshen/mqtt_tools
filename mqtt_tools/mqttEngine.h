@@ -7,6 +7,17 @@
 
 #include <mqtt/MQTTClient.h>
 #include "mqttConfig.h"
+#include <QVector>
+
+typedef struct _tCMqttMessage
+{
+    QString topic;
+    int topicLen;
+    QString message;
+    int qos;
+    int udp;
+
+}CMqttMessage;
 
 class CMqttEngine: public QObject
 {
@@ -23,18 +34,27 @@ public:
     int SetSubscribe(QString topic,int qos);// 订阅
     int SetUnSubscribe(QString topic);// 取消订阅
     static void ConnLost(void *context, char *cause);
-   static void Delivered(void *context, MQTTClient_deliveryToken dt);
+    static void Delivered(void *context, MQTTClient_deliveryToken dt);
     static int MsgArrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message);
 
-
+    static CMqttEngine* GetInstance()
+    {
+        return m_selfEngine;
+    }
 signals:
-     void message2(QString a);
+     void sig_msgArrvd(CMqttMessage* message);
+
+public:
+ static volatile MQTTClient_deliveryToken deliveredtoken;
+ static CMqttEngine* m_selfEngine;// 自身
+
+ int PublishMessage(QString topic, int qos);
 
 private:
     CMqttConfig* m_pConfig;
     MQTTClient m_Client;
-  public:
-   static volatile MQTTClient_deliveryToken deliveredtoken;
+    QVector<QString> m_vTopic;// 主题
+
 };
 
 

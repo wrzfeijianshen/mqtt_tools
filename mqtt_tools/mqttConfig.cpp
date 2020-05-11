@@ -34,6 +34,7 @@ void CMqttConfig::InitINIConfig()
     m_tBroker.topic =   m_pConfig->Get("broker","topic",m_tBroker.topic).toString();
     m_tBroker.user =   m_pConfig->Get("broker","user",m_tBroker.user).toString();
     m_tBroker.pwd =  m_pConfig->Get("broker","pwd",m_tBroker.pwd).toString();
+    m_tBroker.publish_topic =  m_pConfig->Get("broker","publish_topic",m_tBroker.publish_topic).toString();
 }
 
 void CMqttConfig::Save()
@@ -44,6 +45,7 @@ void CMqttConfig::Save()
     m_pConfig->Set("broker","topic",m_tBroker.topic);
     m_pConfig->Set("broker","user",m_tBroker.user);
     m_pConfig->Set("broker","pwd",m_tBroker.pwd);
+    m_pConfig->Set("broker","publish_topic",m_tBroker.publish_topic);
 }
 
 

@@ -2,6 +2,7 @@
 #include "ui_widget.h"
 #include "mqttEngine.h"
 #include <QDebug>
+#include <QDateTime>
 
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
@@ -19,9 +20,24 @@ Widget::~Widget()
 {
     delete ui;
 }
-void Widget::message(QString str)
+void Widget::msgArrvd(CMqttMessage* mess)
 {
-    qDebug() << str;
+    qDebug() << " recv : topic "<< mess->topic << ", message:" << mess->message << "len : " << mess->topicLen;
+
+    // 获取收到的时间
+    QDateTime current_date_time = QDateTime::currentDateTime();
+    QString str;
+    QString current_date;
+    current_date = current_date_time.toString("yyyy-MM-dd hh:mm::ss.zzz");
+    str = current_date;
+    str += "\t topic :[ ";
+
+    str += mess->topic;
+    str += " ] \n   message :[ ";
+    str += mess->message;
+    str += " ] \n";
+
+    ui->plainTextEdit->appendPlainText(str);
 }
 
 void Widget::Init()
@@ -30,8 +46,7 @@ void Widget::Init()
     {
         m_pMqtt = new CMqttEngine();
 
-
-//        connect(CMqttEngine,&CMqttEngine::message2,this,Widget::message);
+        connect(m_pMqtt,SIGNAL(sig_msgArrvd(CMqttMessage*)),this,SLOT(msgArrvd(CMqttMessage*)));// 绑定
         m_Broker = m_pMqtt->GetConfig()->GetBroker();
         ui->addr_lineEdit->setText(m_Broker.addr);
         ui->port_lineEdit->setText(QString::number(m_Broker.port));
@@ -141,4 +156,21 @@ void Widget::on_pushButton_2_clicked()
             ui->pushButton_2->setText("取消订阅");
         }
     }
+}
+
+void Widget::on_pushButton_6_clicked()
+{
+    // 发布主题
+   int ret = 0;
+    QString str = ui->plainTextEdit_2->toPlainText();
+   // 连接服务器
+   ret = m_pMqtt->PublishMessage(str,0);
+   if(ret != 0)
+   {
+       qDebug() <<"m_pMqtt 连接失败 ";
+   }
+   else
+   {
+       m_bSubscribe = true;
+   }
 }
