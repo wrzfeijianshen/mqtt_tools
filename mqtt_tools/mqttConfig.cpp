@@ -9,6 +9,7 @@ CMqttConfig::CMqttConfig():
     m_tBroker.topic = "/topic/test/1";
     m_tBroker.user = "fjs1";
     m_tBroker.pwd = "123456";
+    m_tBroker.publish_topic = "/topic/test/1";
 
 }
 

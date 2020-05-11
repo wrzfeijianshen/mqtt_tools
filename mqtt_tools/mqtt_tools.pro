@@ -12,16 +12,16 @@ TARGET = mqtt_tools
 TEMPLATE = app
 CONFIG(debug, debug|release) {
     DESTDIR = ../bin/debug/
-    OBJECTS_DIR = debug/
-    MOC_DIR = debug/moc/
-    RCC_DIR = debug/rcc/
-    UI_DIR = debug/ui/
+    OBJECTS_DIR = ../bin/obj/debug/
+    MOC_DIR = $$OBJECTS_DIR/moc/
+    RCC_DIR = $$OBJECTS_DIR/rcc/
+    UI_DIR = $$OBJECTS_DIR/ui/
 } else {
-    DESTDIR = bin/release/
-    OBJECTS_DIR = release/
-    MOC_DIR = release/moc/
-    RCC_DIR = release/rcc/
-    UI_DIR = release/ui/
+    DESTDIR = ../bin/release/
+    OBJECTS_DIR = ../bin/obj/release/
+    MOC_DIR = $$OBJECTS_DIR/moc/
+    RCC_DIR = $$OBJECTS_DIR/rcc/
+    UI_DIR = $$OBJECTS_DIR/ui/
 }
 
 
