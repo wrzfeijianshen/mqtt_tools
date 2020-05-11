@@ -252,7 +252,7 @@
       <property name="geometry">
        <rect>
         <x>440</x>
-        <y>20</y>
+        <y>10</y>
         <width>71</width>
         <height>31</height>
        </rect>
@@ -275,9 +275,9 @@
       <property name="geometry">
        <rect>
         <x>440</x>
-        <y>60</y>
+        <y>90</y>
         <width>69</width>
-        <height>22</height>
+        <height>31</height>
        </rect>
       </property>
       <item>
@@ -295,13 +295,26 @@
       <property name="geometry">
        <rect>
         <x>440</x>
-        <y>110</y>
+        <y>130</y>
         <width>75</width>
-        <height>23</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
        <string>清空</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_4">
+      <property name="geometry">
+       <rect>
+        <x>440</x>
+        <y>50</y>
+        <width>71</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>取消订阅</string>
       </property>
      </widget>
     </widget>
@@ -379,6 +392,9 @@
         <width>421</width>
         <height>131</height>
        </rect>
+      </property>
+      <property name="plainText">
+       <string>hello 华夏</string>
       </property>
      </widget>
      <widget class="QComboBox" name="comboBox_4">

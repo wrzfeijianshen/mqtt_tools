@@ -8,8 +8,7 @@ Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget),
     m_pMqtt(nullptr),
-    m_bConnect(false),
-    m_bSubscribe(false)
+    m_bConnect(false)
 {
     ui->setupUi(this);
 
@@ -28,15 +27,16 @@ void Widget::msgArrvd(CMqttMessage* mess)
     QDateTime current_date_time = QDateTime::currentDateTime();
     QString str;
     QString current_date;
-    current_date = current_date_time.toString("yyyy-MM-dd hh:mm::ss.zzz");
+    current_date = current_date_time.toString("yyyy-MM-dd hh:mm:ss");
     str = current_date;
-    str += "\t topic :[ ";
+    str += "\n  topic :[ ";
 
     str += mess->topic;
-    str += " ] \n   message :[ ";
+    str += " ] \n  Qos : [ ";
+    str += QString::number(mess->qos);
+    str +=   " ]\n  message :[ ";
     str += mess->message;
     str += " ] \n";
-
     ui->plainTextEdit->appendPlainText(str);
 }
 
@@ -126,51 +126,50 @@ void Widget::on_public_topic_lineEdit_editingFinished()
 
 void Widget::on_pushButton_2_clicked()
 {
-    int ret = 0;
-    // 订阅主题和取消订阅
-    if(m_bSubscribe)
+    int index =  ui->comboBox->currentIndex();
+    qDebug() << "index : "<<index;
+    // 连接服务器
+    int ret = m_pMqtt->SetSubscribe(m_Broker.topic,index);
+    if(ret != 0)
     {
-        m_bSubscribe = false;
-        ret = m_pMqtt->SetUnSubscribe(m_Broker.topic);
-        if(ret != 0)
-        {
-            qDebug() << "订阅不存在 " << ret;
-        }
-
+        qDebug() <<"m_pMqtt 连接失败 ";
         ui->pushButton_2->setText("订阅");
-    }
-    else
-    {
-        int index =  ui->comboBox->currentIndex();
-        qDebug() << "index : "<<index;
-        // 连接服务器
-        ret = m_pMqtt->SetSubscribe(m_Broker.topic,index);
-        if(ret != 0)
-        {
-            qDebug() <<"m_pMqtt 连接失败 ";
-            ui->pushButton_2->setText("订阅");
-        }
-        else
-        {
-            m_bSubscribe = true;
-            ui->pushButton_2->setText("取消订阅");
-        }
     }
 }
 
 void Widget::on_pushButton_6_clicked()
 {
     // 发布主题
-   int ret = 0;
+    int ret = 0;
     QString str = ui->plainTextEdit_2->toPlainText();
-   // 连接服务器
-   ret = m_pMqtt->PublishMessage(str,0);
-   if(ret != 0)
-   {
-       qDebug() <<"m_pMqtt 连接失败 ";
-   }
-   else
-   {
-       m_bSubscribe = true;
-   }
+    int index =  ui->comboBox_3->currentIndex();
+    // 连接服务器
+    ret = m_pMqtt->PublishMessage(m_Broker.publish_topic,str,index);
+    if(ret != 0)
+    {
+        qDebug() <<"m_pMqtt 连接失败 ";
+    }
+}
+
+void Widget::on_pushButton_3_clicked()
+{
+    // 清空
+    ui->plainTextEdit->clear();
+}
+
+void Widget::on_pushButton_5_clicked()
+{
+    // 清空
+    ui->plainTextEdit_2->clear();
+}
+
+void Widget::on_pushButton_4_clicked()
+{
+    // 取消订阅
+    int ret = m_pMqtt->SetUnSubscribe(m_Broker.topic);
+    if(ret != 0)
+    {
+        qDebug() << "订阅不存在 " << ret;
+    }
+
 }

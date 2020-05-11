@@ -3,7 +3,9 @@
 #include <QDebug>
 #include <functional>
 #include <QTextCodec>
-
+#include <string>
+#include <QByteArray>
+#include <QTextCodec>
 
 using namespace std;
 
@@ -11,6 +13,82 @@ using namespace std;
 CMqttEngine* CMqttEngine::m_selfEngine = nullptr;
 volatile MQTTClient_deliveryToken CMqttEngine::deliveredtoken = 0;
 
+
+#ifdef _WIN32
+#include <windows.h>
+
+string GbkToUtf8(const char *src_str)
+{
+    int len = MultiByteToWideChar(CP_ACP, 0, src_str, -1, NULL, 0);
+    wchar_t* wstr = new wchar_t[len + 1];
+    memset(wstr, 0, len + 1);
+    MultiByteToWideChar(CP_ACP, 0, src_str, -1, wstr, len);
+    len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL);
+    char* str = new char[len + 1];
+    memset(str, 0, len + 1);
+    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, len, NULL, NULL);
+    string strTemp = str;
+    if (wstr) delete[] wstr;
+    if (str) delete[] str;
+    return strTemp;
+}
+
+string Utf8ToGbk(const char *src_str)
+{
+    int len = MultiByteToWideChar(CP_UTF8, 0, src_str, -1, NULL, 0);
+    wchar_t* wszGBK = new wchar_t[len + 1];
+    memset(wszGBK, 0, len * 2 + 2);
+    MultiByteToWideChar(CP_UTF8, 0, src_str, -1, wszGBK, len);
+    len = WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, NULL, 0, NULL, NULL);
+    char* szGBK = new char[len + 1];
+    memset(szGBK, 0, len + 1);
+    WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, szGBK, len, NULL, NULL);
+    string strTemp(szGBK);
+    if (wszGBK) delete[] wszGBK;
+    if (szGBK) delete[] szGBK;
+    return strTemp;
+}
+#else
+#include <iconv.h>
+
+int GbkToUtf8(char *str_str, size_t src_len, char *dst_str, size_t dst_len)
+{
+    iconv_t cd;
+    char **pin = &str_str;
+    char **pout = &dst_str;
+
+    cd = iconv_open("utf8", "gbk");
+    if (cd == 0)
+        return -1;
+    memset(dst_str, 0, dst_len);
+    if (iconv(cd, pin, &src_len, pout, &dst_len) == -1)
+        return -1;
+    iconv_close(cd);
+    *pout = '\0';
+
+    return 0;
+}
+
+int Utf8ToGbk(char *src_str, size_t src_len, char *dst_str, size_t dst_len)
+{
+    iconv_t cd;
+    char **pin = &src_str;
+    char **pout = &dst_str;
+
+    cd = iconv_open("gbk", "utf8");
+    if (cd == 0)
+        return -1;
+    memset(dst_str, 0, dst_len);
+    if (iconv(cd, pin, &src_len, pout, &dst_len) == -1)
+        return -1;
+    iconv_close(cd);
+    *pout = '\0';
+
+    return 0;
+}
+
+
+#endif
 
 QString GBK2UTF8(const QString &str)
 {
@@ -38,8 +116,6 @@ std::string UTF82GBK(std::string &str)
     return ret;
 }
 
-
-
 CMqttEngine::CMqttEngine():
     m_pConfig(nullptr)
 {
@@ -63,12 +139,14 @@ void CMqttEngine::Delivered(void *context, MQTTClient_deliveryToken dt)
 
 int CMqttEngine::MsgArrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
+    qDebug() << " MsgArrvd qos" << QString::number( message->qos) <<",message " << (char *)message->payload<< ",topic " <<topicName <<",topicLen " << QString::number(topicLen)
+             << ",dup " <<  QString::number( message->dup) ;
     CMqttMessage *mess = new CMqttMessage();
     mess->qos = message->qos;
     mess->message = (char *)message->payload;
     mess->topic =  topicName;
     mess->topicLen = topicLen;
-    mess->udp =  message->dup;
+    mess->dup =  message->dup;
 
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
@@ -159,39 +237,33 @@ int CMqttEngine::SetUnSubscribe(QString topic)
 }
 
 
-int CMqttEngine::PublishMessage(QString topic,int qos)
+int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
 {
-    qDebug() <<"PublishMessage" <<topic;
-    QString qstr = UTF82GBK(topic);// ×ª³Égbk
-
+    qDebug() << "pubTopic " << pubTopic << topic << qos;
     int rc = 0;
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     MQTTClient_deliveryToken token;
 
-    pubmsg.payload = (void *)qstr.toStdString().c_str();
+    QTextCodec*t = QTextCodec::codecForName("Utf8");
 
-    qDebug() <<"PublishMessage" <<(char* )pubmsg.payload;
+    QString str=t->toUnicode(topic.toUtf8());
 
-    pubmsg.payloadlen = qstr.length();
-    qDebug() <<"payloadlen " <<pubmsg.payloadlen;
+    string s1 = str.toStdString();
+
+    pubmsg.payload = (void *)s1.c_str();
+
+    pubmsg.payloadlen = s1.length();
 
 
     pubmsg.qos = qos;
     pubmsg.retained = 0;
 
-    int len = m_vTopic.size();
-
-    for(auto sTopic : m_vTopic)
+    if ((rc = MQTTClient_publishMessage(m_Client, pubTopic.toStdString().c_str(), &pubmsg,  &token)) != MQTTCLIENT_SUCCESS)
     {
-        if ((rc = MQTTClient_publishMessage(m_Client, sTopic.toStdString().c_str(), &pubmsg,  &token)) != MQTTCLIENT_SUCCESS)
-        {
-            qDebug() << "Failed to subscribe, return code " <<  rc;
-            continue;
-        }
-
-        rc = MQTTClient_waitForCompletion(m_Client, token, TIMEOUT);
-
+        qDebug() << "Failed to subscribe, return code " <<  rc;
     }
+
+    rc = MQTTClient_waitForCompletion(m_Client, token, TIMEOUT);
 
     return rc;
 }

@@ -43,6 +43,12 @@ private slots:
 
     void on_pushButton_6_clicked();
 
+    void on_pushButton_3_clicked();
+
+    void on_pushButton_5_clicked();
+
+    void on_pushButton_4_clicked();
+
 private:
     Ui::Widget *ui;
     CMqttEngine *m_pMqtt;
@@ -50,7 +56,6 @@ private:
 
 private:
     bool m_bConnect;// Á¬½Ó
-    bool m_bSubscribe;// ¶©ÔÄ
 };
 
 #endif // WIDGET_H

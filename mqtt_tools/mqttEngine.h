@@ -15,7 +15,7 @@ typedef struct _tCMqttMessage
     int topicLen;
     QString message;
     int qos;
-    int udp;
+    int dup;
 
 }CMqttMessage;
 
@@ -48,7 +48,7 @@ public:
  static volatile MQTTClient_deliveryToken deliveredtoken;
  static CMqttEngine* m_selfEngine;// ×ÔÉí
 
- int PublishMessage(QString topic, int qos);
+ int PublishMessage(QString pubTopic,QString topic,int qos);
 
 private:
     CMqttConfig* m_pConfig;
