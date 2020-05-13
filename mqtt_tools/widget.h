@@ -64,6 +64,7 @@ private:
 private:
     bool m_bConnect;// Á¬½Ó
     QString m_SendfileName;
+    QString m_appFileName;
 };
 
 #endif // WIDGET_H

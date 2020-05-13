@@ -189,7 +189,7 @@ int CMqttEngine::Connect()
         return rc;
     }
 
-    conn_opts.keepAliveInterval = 20;
+//    conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
     if ((rc = MQTTClient_connect(m_Client, &conn_opts)) != MQTTCLIENT_SUCCESS)
     {

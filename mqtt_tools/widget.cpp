@@ -69,6 +69,7 @@ Widget::Widget(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    m_appFileName = QCoreApplication::applicationDirPath();
     Init();
 }
 
@@ -87,8 +88,17 @@ void Widget::msgArrvd(CMqttMessage* mess)
     QString current_date;
     current_date = current_date_time.toString("yyyy-MM-dd hh:mm:ss");
 
-    // 解析json
+    QString strOutPath = m_appFileName+ "/fileCache/";
+    QDir dir(strOutPath);
+    if(!dir.exists()){
+        bool ismkdir = dir.mkdir(strOutPath);
+        if(!ismkdir)
+            qDebug() << "Create path fail" << endl;
+        else
+            qDebug() << "Create fullpath success" << endl;
+    }
 
+    // 解析json
     QJsonParseError error;
     QJsonDocument document = QJsonDocument::fromJson(mess->message.toUtf8(), &error);
     if(QJsonParseError::NoError == error.error)
@@ -117,7 +127,7 @@ void Widget::msgArrvd(CMqttMessage* mess)
             qDebug() << file1;
              QByteArray arr;
              arr.append(Base64::decode(file1));
-             QFile file(filename);//
+             QFile file(strOutPath + filename);//
              bool isOk = file.open(QFile::Append);
              if (!isOk) {
                  qDebug() <<"file : no ";
@@ -288,8 +298,9 @@ void Widget::on_pushButton_6_clicked()
     if(ret != 0)
     {
         qDebug() <<"m_pMqtt 连接失败 ";
+        return;
     }
-
+    qDebug() << "发送完毕";
 }
 
 void Widget::on_pushButton_3_clicked()
@@ -334,7 +345,10 @@ void Widget::on_pushButton_7_clicked()
         SetStatText("文件为空,请选择文件","red");
         return;
     }
-
+    // 测试多了,应该会挂掉
+    int sNum = 2;
+    while(sNum--)
+    {
     QFileInfo fileinfo;
     fileinfo = QFileInfo(m_SendfileName);
     QString file_name = fileinfo.fileName();
@@ -375,7 +389,7 @@ void Widget::on_pushButton_7_clicked()
 //        qDebug() <<"Base64 str size: [ "  << GetFileSize(x.size());
         QJsonObject json{
             { "type", CMD_S2C_DOWNFILE },
-            { "fileName", file_name},
+            { "fileName", file_name +QString::number(sNum)},
             { "fileName1", QString::number(num)},
 
             { "data", str}
@@ -392,6 +406,7 @@ void Widget::on_pushButton_7_clicked()
         if(ret != 0)
         {
             qDebug() <<"m_pMqtt push " << ret;
+             return;
         }
 
 //        QString * ss =  new QString(str);
@@ -399,7 +414,9 @@ void Widget::on_pushButton_7_clicked()
     }
     while(1);
     SetStatText("发送文件成功");
-     qDebug() <<"m_pMqtt push 1111" ;
+     qDebug() <<"m_pMqtt push 1111 : "  << sNum;
+
+    }
      m_SendfileName ="";
 
 #endif
@@ -435,6 +452,7 @@ void Widget::on_pushButton_7_clicked()
     if(ret != 0)
     {
         qDebug() <<"m_pMqtt push " << ret;
+
     }
 #endif
 }
