@@ -30,7 +30,8 @@ SOURCES += main.cpp\
     mqttEngine.cpp \
     config.cpp \
     mqttConfig.cpp \
-    base64.cpp
+    base64.cpp \
+    pubsub_opts.c
 
 HEADERS  += widget.h \
     mqttEngine.h \

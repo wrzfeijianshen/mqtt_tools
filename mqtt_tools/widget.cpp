@@ -12,6 +12,7 @@
 #include <string>
 #include <QFile>
 #include <QFileDialog>
+#include "mqtt/pubsub_opts.h"
 
 QString GetFileSize(const qint64 &size)
 {
@@ -192,6 +193,7 @@ void Widget::Init()
         ui->pwd_lineEdit->setText(m_Broker.pwd);
         ui->topic_lineEdit->setText(m_Broker.topic);
         ui->public_topic_lineEdit->setText(m_Broker.publish_topic);
+        ui->comboBox_6->setCurrentIndex(m_Broker.appMode);
     }
 }
 
@@ -300,6 +302,7 @@ void Widget::on_pushButton_6_clicked()
         qDebug() <<"m_pMqtt 连接失败 ";
         return;
     }
+    return ;
     qDebug() << "发送完毕";
 }
 
@@ -333,6 +336,8 @@ enum scmdtype{
 
 void Widget::on_pushButton_7_clicked()
 {
+    if (m_Broker.appMode == 0)
+    {
     // file --> base64
     // Config.ini
 
@@ -346,7 +351,7 @@ void Widget::on_pushButton_7_clicked()
         return;
     }
     // 测试多了,应该会挂掉
-    int sNum = 2;
+    int sNum = 1000;
     while(sNum--)
     {
     QFileInfo fileinfo;
@@ -401,7 +406,7 @@ void Widget::on_pushButton_7_clicked()
         QByteArray barr = document.toJson(QJsonDocument::Compact);
 
         qDebug() <<"barr size: [ "  << GetFileSize(barr.size());
-//        QThread::msleep(10);
+        QThread::msleep(30);
         int ret = m_pMqtt->PublishJsonMessage(pubTopoc,barr.data(),index);
         if(ret != 0)
         {
@@ -455,6 +460,11 @@ void Widget::on_pushButton_7_clicked()
 
     }
 #endif
+    }
+    else if (m_Broker.appMode == 1)
+    {
+        m_pMqtt->PublishSendMessage(m_Broker.publish_topic,m_SendfileName,0);
+    }
 }
 
 void Widget::on_pushButton_9_clicked()
@@ -475,4 +485,11 @@ void Widget::on_pushButton_8_clicked()
       return;
   }
 
+}
+
+void Widget::on_comboBox_6_currentIndexChanged(const QString &arg1)
+{
+    int index =  ui->comboBox_6->currentIndex();
+    m_Broker.appMode = index;
+    m_pMqtt->GetConfig()->SetBroker(m_Broker);
 }

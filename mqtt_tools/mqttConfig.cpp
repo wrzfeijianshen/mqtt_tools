@@ -10,6 +10,7 @@ CMqttConfig::CMqttConfig():
     m_tBroker.user = "fjs1";
     m_tBroker.pwd = "123456";
     m_tBroker.publish_topic = "/topic/test/1";
+    m_tBroker.appMode = 0;// 1同步客户端 ,2异步模式
 
 }
 
@@ -36,6 +37,7 @@ void CMqttConfig::InitINIConfig()
     m_tBroker.user =   m_pConfig->Get("broker","user",m_tBroker.user).toString();
     m_tBroker.pwd =  m_pConfig->Get("broker","pwd",m_tBroker.pwd).toString();
     m_tBroker.publish_topic =  m_pConfig->Get("broker","publish_topic",m_tBroker.publish_topic).toString();
+    m_tBroker.appMode =   m_pConfig->Get("broker","appMode",m_tBroker.appMode).toInt();
 }
 
 void CMqttConfig::Save()
@@ -47,6 +49,8 @@ void CMqttConfig::Save()
     m_pConfig->Set("broker","user",m_tBroker.user);
     m_pConfig->Set("broker","pwd",m_tBroker.pwd);
     m_pConfig->Set("broker","publish_topic",m_tBroker.publish_topic);
+    m_pConfig->Set("broker","appMode",m_tBroker.appMode);
+
 }
 
 

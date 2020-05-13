@@ -56,6 +56,8 @@ private slots:
 
     void on_pushButton_8_clicked();
 
+    void on_comboBox_6_currentIndexChanged(const QString &arg1);
+
 private:
     Ui::Widget *ui;
     CMqttEngine *m_pMqtt;

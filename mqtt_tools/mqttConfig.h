@@ -14,6 +14,7 @@ typedef struct tMQTTBroker
     QString pwd;
     QString topic;
     QString publish_topic;
+    int appMode;
 }MQTTBroker;
 
 class CMqttConfig
