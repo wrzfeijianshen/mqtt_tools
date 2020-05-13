@@ -29,12 +29,14 @@ SOURCES += main.cpp\
         widget.cpp \
     mqttEngine.cpp \
     config.cpp \
-    mqttConfig.cpp
+    mqttConfig.cpp \
+    base64.cpp
 
 HEADERS  += widget.h \
     mqttEngine.h \
     config.h \
-    mqttConfig.h
+    mqttConfig.h \
+    base64.h
 
 FORMS    += widget.ui
 

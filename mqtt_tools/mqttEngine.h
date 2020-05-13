@@ -43,13 +43,14 @@ public:
     }
 signals:
      void sig_msgArrvd(CMqttMessage* message);
-
+     void sig_msgConnLost();
 public:
  static volatile MQTTClient_deliveryToken deliveredtoken;
  static CMqttEngine* m_selfEngine;// ×ÔÉí
 
  int PublishMessage(QString pubTopic,QString topic,int qos);
 
+ int PublishJsonMessage(QString pubTopic, char *msg, int qos);
 private:
     CMqttConfig* m_pConfig;
     MQTTClient m_Client;

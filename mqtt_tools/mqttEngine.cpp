@@ -139,11 +139,15 @@ void CMqttEngine::Delivered(void *context, MQTTClient_deliveryToken dt)
 
 int CMqttEngine::MsgArrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
-    qDebug() << " MsgArrvd qos" << QString::number( message->qos) <<",message " << (char *)message->payload<< ",topic " <<topicName <<",topicLen " << QString::number(topicLen)
-             << ",dup " <<  QString::number( message->dup) ;
+//    qDebug() << " MsgArrvd qos" << QString::number( message->qos) <<",message " << (char *)message->payload<< ",topic " <<topicName <<",topicLen " << QString::number(topicLen)
+//             << ",dup " <<  QString::number( message->dup) ;
+    char* pTopic;
+    pTopic = (char *)message->payload;
+    QByteArray bPtopic = QByteArray(pTopic, message->payloadlen);
+
     CMqttMessage *mess = new CMqttMessage();
     mess->qos = message->qos;
-    mess->message = (char *)message->payload;
+    mess->message = QString(bPtopic);
     mess->topic =  topicName;
     mess->topicLen = topicLen;
     mess->dup =  message->dup;
@@ -158,6 +162,7 @@ void CMqttEngine::ConnLost(void *context, char *cause)
 {
     qDebug() << "\nConnection lost";
     qDebug() << "     cause: "<<cause;
+    emit GetInstance()->sig_msgConnLost();
 }
 
 
@@ -256,7 +261,7 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
 
 
     pubmsg.qos = qos;
-    pubmsg.retained = 0;
+    pubmsg.retained = 1;
 
     if ((rc = MQTTClient_publishMessage(m_Client, pubTopic.toStdString().c_str(), &pubmsg,  &token)) != MQTTCLIENT_SUCCESS)
     {
@@ -267,3 +272,31 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
 
     return rc;
 }
+
+
+int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos)
+{
+    qDebug() << "pubTopic " << pubTopic << qos;
+    int rc = 0;
+    MQTTClient_message pubmsg = MQTTClient_message_initializer;
+    MQTTClient_deliveryToken token;
+    pubmsg.payload = msg;
+
+    pubmsg.payloadlen = strlen(msg);
+    qDebug() <<"strlen " << strlen(msg) << pubmsg.payloadlen;
+
+    pubmsg.qos = qos;
+    pubmsg.retained = 0;
+
+
+
+    if ((rc = MQTTClient_publishMessage(m_Client, pubTopic.toStdString().c_str(), &pubmsg,  &token)) != MQTTCLIENT_SUCCESS)
+    {
+        qDebug() << "Failed to subscribe, return code " <<  rc;
+    }
+
+    rc = MQTTClient_waitForCompletion(m_Client, token, TIMEOUT);
+
+    return rc;
+}
+

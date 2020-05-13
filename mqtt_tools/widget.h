@@ -19,9 +19,10 @@ public:
 public:
     void Init();
 
+    void SetStatText(QString str, QString color = "black");
 private slots:
     void msgArrvd(CMqttMessage* mess);
-
+    void msgConnLost();
 private slots:
     void on_pushButton_clicked();
 
@@ -49,6 +50,12 @@ private slots:
 
     void on_pushButton_4_clicked();
 
+    void on_pushButton_7_clicked();
+
+    void on_pushButton_9_clicked();
+
+    void on_pushButton_8_clicked();
+
 private:
     Ui::Widget *ui;
     CMqttEngine *m_pMqtt;
@@ -56,6 +63,7 @@ private:
 
 private:
     bool m_bConnect;// Á¬½Ó
+    QString m_SendfileName;
 };
 
 #endif // WIDGET_H
