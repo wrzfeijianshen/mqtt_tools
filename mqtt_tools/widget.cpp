@@ -14,6 +14,12 @@
 #include <QFileDialog>
 #include "mqtt/pubsub_opts.h"
 
+enum scmdtype{
+    CMD_S2C_CONNECT = 0x10,    //服务收到连接tcp信息，向client发送连接命令
+    CMD_S2C_DOWNFILE,          //
+};
+
+
 QString GetFileSize(const qint64 &size)
 {
     int integer = 0;  //整数位
@@ -80,7 +86,7 @@ Widget::~Widget()
 }
 
 //QStringList g_aList;
- QList<QString> g_aList;
+QList<QString> g_aList;
 void Widget::msgArrvd(CMqttMessage* mess)
 {
     // 获取收到的时间
@@ -109,49 +115,85 @@ void Widget::msgArrvd(CMqttMessage* mess)
 
         //map
         QVariantMap map = document.toVariant().toMap();
+        int type = -1;
         if(map.contains("type"))
         {
-            int type = map["type"].toInt();
+            type = map["type"].toInt();
             qDebug() << type;
         }
-          QString filename;
-        if(map.contains("fileName"))
+        switch (type)
         {
-           filename = map["fileName"].toString();
-            qDebug() << filename;
+        case -1:
+        {
+            // 输出信息
+            str = current_date;
+            str += "\n  topic :[ ";
+
+            str += mess->topic;
+            str += " ] \n  Qos : [ ";
+            str += QString::number(mess->qos);
+            str +=   " ]\n  message :[ ";
+            str += mess->message;
+            str += " ] \n";
+            ui->plainTextEdit->appendPlainText(str);
+        }
+            break;
+        case (int)CMD_S2C_DOWNFILE:
+        {
+            QString filename;
+            if(map.contains("fileName"))
+            {
+                filename = map["fileName"].toString();
+                qDebug() << filename;
+            }
+
+            if(map.contains("data"))
+            {
+                QString file1 = map["data"].toString();
+                //            g_aList.append(file);
+                qDebug() << file1;
+                QByteArray arr;
+                arr.append(Base64::decode(file1));
+                QFile file(strOutPath + filename);//
+                bool isOk = file.open(QFile::Append);
+                if (!isOk) {
+                    qDebug() <<"file : no ";
+                    return;
+                }
+                file.write(arr);
+                file.close();
+                //             g_aList.clear();
+            }
+            break;
+        }
+        default:
+        {
+            QString data;
+            if(map.contains("data"))
+            {
+                data = map["data"].toString();
+            }
+
+            str = current_date;
+            str += "\n  topic :[ ";
+
+            str += mess->topic;
+            str += " ] \n  Qos : [ ";
+            str += QString::number(mess->qos);
+            str +=   " ]\n  message data:[ ";
+            str += data;
+            str += " ] \n";
+            ui->plainTextEdit->appendPlainText(str);
         }
 
-        if(map.contains("data"))
-        {
-            QString file1 = map["data"].toString();
-//            g_aList.append(file);
-            qDebug() << file1;
-             QByteArray arr;
-             arr.append(Base64::decode(file1));
-             QFile file(strOutPath + filename);//
-             bool isOk = file.open(QFile::Append);
-             if (!isOk) {
-                 qDebug() <<"file : no ";
-                 return;
-             }
-             file.write(arr);
-             file.close();
-//             g_aList.clear();
         }
 
-        //        //数组
-        //        QList<QVariant> list = document.toVariant.toList();
-        //        foreach(QVariant item, list)
-        //        {
-        //            QVariantMap map = item.toMap();
-        //            QString addr = map["address"].toString();
-        //        }
+
     }
     else
     {
         // 字符串
         qDebug() << " recv : topic "<< mess->topic << ", message:" << mess->message << "len : " << mess->topicLen;
-
 
         str = current_date;
         str += "\n  topic :[ ";
@@ -209,6 +251,7 @@ void Widget::on_pushButton_clicked()
 {
     if(m_bConnect)
     {
+        m_bConnect = false;
         ui->pushButton->setText("连接");
         m_pMqtt->Destroy();
         SetStatText("已断开服务器");
@@ -278,6 +321,8 @@ void Widget::on_public_topic_lineEdit_editingFinished()
 
 void Widget::on_pushButton_2_clicked()
 {
+    if(m_pMqtt == nullptr)
+        return;
     int index =  ui->comboBox->currentIndex();
     qDebug() << "index : "<<index;
     // 连接服务器
@@ -295,8 +340,11 @@ void Widget::on_pushButton_6_clicked()
     int ret = 0;
     QString str = ui->plainTextEdit_2->toPlainText();
     int index =  ui->comboBox_3->currentIndex();
+    int check = ui->checkBox->isChecked()== true ?1:0;
+    // 判断是否json串发送.
+
     // 连接服务器
-    ret = m_pMqtt->PublishMessage(m_Broker.publish_topic,str,index);
+    ret = m_pMqtt->PublishMessage(m_Broker.publish_topic,str,index,check);
     if(ret != 0)
     {
         qDebug() <<"m_pMqtt 连接失败 ";
@@ -329,141 +377,98 @@ void Widget::on_pushButton_4_clicked()
 
 }
 
-enum scmdtype{
-    CMD_S2C_CONNECT = 0x10,    //服务收到连接tcp信息，向client发送连接命令
-    CMD_S2C_DOWNFILE,          //
-};
-
 void Widget::on_pushButton_7_clicked()
 {
     if (m_Broker.appMode == 0)
     {
-    // file --> base64
-    // Config.ini
+        // file --> base64
+        // Config.ini
 
-    // 据测试 小于可能1M的可以发送完毕 917.119K,如果发送超过1M字节大小则造成发送失败,断开连接
-    // 如果固定大小发送500k数据二进制文件,
-    // 100M 东西大概1分钟.
-    // 下载端和接收端则边读边发送,不然都读取到内存,受不了.
-    if(m_SendfileName == "")
-    {
-        SetStatText("文件为空,请选择文件","red");
-        return;
-    }
-    // 测试多了,应该会挂掉
-    int sNum = 1000;
-    while(sNum--)
-    {
-    QFileInfo fileinfo;
-    fileinfo = QFileInfo(m_SendfileName);
-    QString file_name = fileinfo.fileName();
+        // 据测试 小于可能1M的可以发送完毕 917.119K,如果发送超过1M字节大小则造成发送失败,断开连接
+        // 如果固定大小发送500k数据二进制文件,
+        // 100M 东西大概1分钟.
+        // 下载端和接收端则边读边发送,不然都读取到内存,受不了.
 
-    QFile file(m_SendfileName);//
-    bool isOk = file.open(QFile::ReadOnly);
-    if (!isOk) {
-        SetStatText("文件为空,请选择文件","red");
-        qDebug() <<"file : no ";
-        return;
-    }
+        // 猜测: 如果心跳包存在,同步客户端,可能会导致心跳包发送或者接收,在指定时间内,断开与服务器的连接,导致文件发送失败.
+        // conn_opts.keepAliveInterval = 0; 则不发送心跳包,如果是正常的话,文件传输应该没有什么问题.不会中途断开连接.
 
+        if(m_SendfileName == "")
+        {
+            SetStatText("文件为空,请选择文件","red");
+            return;
+        }
+        QFileInfo fileinfo;
+        fileinfo = QFileInfo(m_SendfileName);
+        QString file_name = fileinfo.fileName();
 
-
+        QFile file(m_SendfileName);//
+        bool isOk = file.open(QFile::ReadOnly);
+        if (!isOk) {
+            SetStatText("文件为空,请选择文件","red");
+            qDebug() <<"file : no ";
+            return;
+        }
 
 #if 1
-    QString pubTopoc = ui->public_topic_lineEdit_2->text();
-    qDebug() << pubTopoc;
-    int index =  ui->comboBox_5->currentIndex();
+        QString pubTopoc = ui->public_topic_lineEdit_2->text();
+        qDebug() << pubTopoc;
+        int index =  ui->comboBox_5->currentIndex();
 
-    // 读文件
-    int len = 0;
-    int num = 0;
-    do
-    {
-        QByteArray array = file.read(1024*500);
-
-        len =array.size();
-        if(len == 0)
+        // 读文件
+        int len = 0;
+        int num = 0;
+        do
         {
-            qDebug() << "file : size 0";
-            break;
+            // 分片
+            QByteArray array = file.read(1024*500);
+
+            len =array.size();
+            if(len == 0)
+            {
+                qDebug() << "file : size 0";
+                break;
+            }
+            num++;
+            qDebug() <<"file : size [ " << GetFileSize(len) << num;
+            QString str = Base64::encode(array);
+
+            QJsonObject json
+            {
+                { "type", CMD_S2C_DOWNFILE },
+                { "fileName", file_name},
+                { "fileName1", QString::number(num)},
+
+                { "data", str}
+            };
+            num++;
+
+            QJsonDocument document;
+            document.setObject(json);
+            QByteArray barr = document.toJson(QJsonDocument::Compact);
+
+            qDebug() <<"barr size: [ "  << GetFileSize(barr.size());
+            int check = ui->checkBox->isChecked()== true ?1:0;
+            QThread::msleep(10);// 休息一段时间
+            int ret = m_pMqtt->PublishJsonMessage(pubTopoc,barr.data(),index,check);
+            if(ret != 0)
+            {
+                qDebug() <<"m_pMqtt push " << ret;
+                return;
+            }
         }
-        num++;
-        qDebug() <<"file : size [ " << GetFileSize(len) << num;
-        QString str = Base64::encode(array);
+        while(1);
+        SetStatText("发送文件成功");
+        qDebug() <<"m_pMqtt push 发送文件成功 : ";
 
-//        qDebug() <<"Base64 str size: [ "  << GetFileSize(x.size());
-        QJsonObject json{
-            { "type", CMD_S2C_DOWNFILE },
-            { "fileName", file_name +QString::number(sNum)},
-            { "fileName1", QString::number(num)},
+        m_SendfileName ="";
 
-            { "data", str}
-        };
-        num++;
-
-        QJsonDocument document;
-        document.setObject(json);
-        QByteArray barr = document.toJson(QJsonDocument::Compact);
-
-        qDebug() <<"barr size: [ "  << GetFileSize(barr.size());
-        QThread::msleep(30);
-        int ret = m_pMqtt->PublishJsonMessage(pubTopoc,barr.data(),index);
-        if(ret != 0)
-        {
-            qDebug() <<"m_pMqtt push " << ret;
-             return;
-        }
-
-//        QString * ss =  new QString(str);
-//        sList.push_back(ss);
-    }
-    while(1);
-    SetStatText("发送文件成功");
-     qDebug() <<"m_pMqtt push 1111 : "  << sNum;
-
-    }
-     m_SendfileName ="";
-
-#endif
-#if 0
-    QByteArray array = file.readAll();
-    QString str =  Base64::encode(array);
-    file.close();
-
-    //        array.toBase64();
-
-
-    //    qDebug() <<"str" << str;
-
-    //    QByteArray arr =  Base64::decode(str);
-
-
-    QJsonObject json{
-        { "type", CMD_S2C_DOWNFILE },
-        { "fileName", "conf_zip222.zip1"},
-        { "fileName1", QString::number(num)},
-
-        { "data", str}
-    };
-
-
-    QJsonDocument document;
-    document.setObject(json);
-    QByteArray barr = document.toJson(QJsonDocument::Compact);
-
-    qDebug() <<"barr size: [ "  << GetFileSize(barr.size()) << barr.size();
-
-    int ret = m_pMqtt->PublishJsonMessage(m_Broker.publish_topic,barr.data(),0);
-    if(ret != 0)
-    {
-        qDebug() <<"m_pMqtt push " << ret;
-
-    }
 #endif
     }
     else if (m_Broker.appMode == 1)
     {
-        m_pMqtt->PublishSendMessage(m_Broker.publish_topic,m_SendfileName,0);
+        int index =  ui->comboBox_5->currentIndex();
+        int check = ui->checkBox->isChecked()== true ?1:0;
+        m_pMqtt->PublishSendMessage(m_Broker.publish_topic,m_SendfileName,index,check);
     }
 }
 
@@ -475,15 +480,15 @@ void Widget::on_pushButton_9_clicked()
 void Widget::on_pushButton_8_clicked()
 {
     // 选择发送文件
-   m_SendfileName = QFileDialog::getOpenFileName(
-                  this, tr("open file"),
-                  "./", tr("files All files (*.*)"));
+    m_SendfileName = QFileDialog::getOpenFileName(
+                this, tr("open file"),
+                "./", tr("files All files (*.*)"));
 
-  if(m_SendfileName.isEmpty())
-  {
-       SetStatText("打开文件失败","red");
-      return;
-  }
+    if(m_SendfileName.isEmpty())
+    {
+        SetStatText("打开文件失败","red");
+        return;
+    }
 
 }
 
@@ -492,4 +497,44 @@ void Widget::on_comboBox_6_currentIndexChanged(const QString &arg1)
     int index =  ui->comboBox_6->currentIndex();
     m_Broker.appMode = index;
     m_pMqtt->GetConfig()->SetBroker(m_Broker);
+}
+
+void Widget::on_comboBox_2_currentIndexChanged(int index)
+{
+    // 下次收到后会转换
+}
+
+void Widget::on_comboBox_4_currentIndexChanged(int index)
+{
+    // 选择json串,清空内容
+    if ( index == 1)
+    {
+
+        QJsonObject json
+        {
+            { "type", 1 },
+            { "data", "江湖再见"}
+        };
+        QJsonDocument document;
+        document.setObject(json);
+        ui->plainTextEdit_2->clear();
+        ui->plainTextEdit_2->appendPlainText(document.toJson());
+    }
+}
+
+void Widget::on_pushButton_10_clicked()
+{
+    // 一个 Topic 只能有 1 条 Retained 消息，发布新的 Retained 消息将覆盖老的 Retained 消息
+    // Retained 消息是 Broker 为每一个 Topic 单独存储的，而持久性会话是 Broker 为每一个 Client 单独存储的。
+    // 删除一个 Retained 消息也很简单 : 向这个主题发布一个 Payload 长度为 0 的 Retained 消息就可以了
+    // 连接服务器
+    int index =  ui->comboBox_3->currentIndex();
+    int ret = m_pMqtt->PublishMessage(m_Broker.publish_topic,"",index,1);
+    if(ret != 0)
+    {
+        qDebug() <<"m_pMqtt 连接失败 ";
+        return;
+    }
+    return ;
+    qDebug() << "发送完毕";
 }

@@ -119,7 +119,8 @@ std::string UTF82GBK(std::string &str)
 
 CMqttEngine::CMqttEngine():
     m_pConfig(nullptr),
-    m_Client(nullptr)
+    m_Client(nullptr),
+    m_bConnect(false)
 {
     m_selfEngine = this;
     m_pConfig = new CMqttConfig();
@@ -142,6 +143,7 @@ void CMqttEngine::ConnLost(void *context, char *cause)
 {
     qDebug() << "\nConnection lost";
     qDebug() << "     cause: "<<cause;
+
     emit GetInstance()->sig_msgConnLost();
 }
 
@@ -179,6 +181,7 @@ void CMqttEngine::ConnLostAsync(void *context, char *cause)
 {
     qDebug() << "\nConnection lost";
     qDebug() << "     cause: "<<cause;
+
     emit GetInstance()->sig_msgConnLost();
 }
 
@@ -235,13 +238,14 @@ int CMqttEngine::Connect()
             return rc;
         }
 
-        //    conn_opts.keepAliveInterval = 20;
+        conn_opts.keepAliveInterval = 0;
         conn_opts.cleansession = 1;
         if ((rc = MQTTClient_connect(m_Client, &conn_opts)) != MQTTCLIENT_SUCCESS)
         {
             qDebug() << "Failed to connect, return code "<< rc;
             return rc;
         }
+        m_bConnect = true;
         return rc;
     }
     else if (broker.appMode == 1)
@@ -265,7 +269,7 @@ int CMqttEngine::Connect()
             return rc;
         }
 
-        conn_opts.keepAliveInterval = 20;
+        conn_opts.keepAliveInterval = 0;
         conn_opts.cleansession = 1;
         conn_opts.onSuccess = &CMqttEngine::onCallbackConnectAsync;
         //        conn_opts.onFailure = onConnectFailure;
@@ -275,6 +279,8 @@ int CMqttEngine::Connect()
             qDebug() << "connect return code" <<  rc;
             return rc;
         }
+        m_bConnect = true;
+
         return 0;
 
     }
@@ -283,15 +289,27 @@ int CMqttEngine::Connect()
 void CMqttEngine::Destroy()
 {
     int rc;
-    if ((rc = MQTTClient_disconnect(m_Client, 10000)) != MQTTCLIENT_SUCCESS)
-        qDebug() << "Failed to disconnect, return code " <<  rc;
+    for(auto x: m_vTopic)
+    {
+        if (rc = MQTTClient_unsubscribe(m_Client, ((QString)x).toStdString().c_str()) != MQTTCLIENT_SUCCESS)
+        {
+            qDebug() << "Failed to unsubscribe, return code " <<  rc;
+        }
+    }
 
+
+    rc = MQTTClient_disconnect(m_Client, 10000);
+    if (rc!= MQTTCLIENT_SUCCESS)
+        qDebug() << "Failed to MQTTClient_disconnect , return code " <<  rc;
+    m_bConnect = false;
     MQTTClient_destroy(&m_Client);
 }
 
 
 int CMqttEngine::SetSubscribe(QString topic,int qos)
 {
+    if(!m_bConnect)
+        return -1;
     MQTTBroker broker = m_pConfig->GetBroker();
     if (broker.appMode == 0)
     {
@@ -311,15 +329,15 @@ int CMqttEngine::SetSubscribe(QString topic,int qos)
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
         int rc;
 
-//        printf("Subscribing to topic %s\nfor client %s using QoS%d\n\n"
-//               "Press Q<Enter> to quit\n\n", TOPIC, CLIENTID, QOS);
-//        opts.onSuccess = onSubscribe;
-//        opts.onFailure = onSubscribeFailure;
+        //        printf("Subscribing to topic %s\nfor client %s using QoS%d\n\n"
+        //               "Press Q<Enter> to quit\n\n", TOPIC, CLIENTID, QOS);
+        //        opts.onSuccess = onSubscribe;
+        //        opts.onFailure = onSubscribeFailure;
         opts.context = m_ClientAsync;
         if ((rc = MQTTAsync_subscribe(m_ClientAsync, topic.toStdString().c_str(), qos, &opts)) != MQTTASYNC_SUCCESS)
         {
             qDebug() << "Failed to start subscribe, return code \n"<<  rc;
-           return rc;
+            return rc;
         }
 
     }
@@ -329,6 +347,8 @@ int CMqttEngine::SetSubscribe(QString topic,int qos)
 
 int CMqttEngine::SetUnSubscribe(QString topic)
 {
+    if(!m_bConnect)
+        return -1;
     MQTTBroker broker = m_pConfig->GetBroker();
     if (broker.appMode == 0)
     {
@@ -400,27 +420,33 @@ char* readfile(int* data_len,const char* filename)
     return buffer;
 }
 
-int CMqttEngine::PublishSendMessage(QString pubTopic,QString topic,int qos)
+int CMqttEngine::PublishSendMessage(QString pubTopic,QString topic,int qos,int retained)
 {
+    if(!m_bConnect)
+        return -1;
+
     pubsub_opts opts;
-   opts.filename = topic.toStdString().c_str();
+    opts.filename = topic.toStdString().c_str();
     int data_len = 0;
-   char* buffer = readfile(&data_len,topic.toStdString().c_str() );
-MQTTAsync_responseOptions pub_opts = MQTTAsync_responseOptions_initializer;
-   if (buffer == NULL)
-       return 0;
-   else
-   {
-       int  rc = MQTTAsync_send(m_ClientAsync, pubTopic.toStdString().c_str(), data_len, buffer, 0, 0, &pub_opts);
-         if ( rc != MQTTASYNC_SUCCESS )
+    char* buffer = readfile(&data_len,topic.toStdString().c_str() );
+    MQTTAsync_responseOptions pub_opts = MQTTAsync_responseOptions_initializer;
+    if (buffer == NULL)
+        return 0;
+    else
+    {
+        int  rc = MQTTAsync_send(m_ClientAsync, pubTopic.toStdString().c_str(), data_len, buffer,qos, retained, &pub_opts);
+        if ( rc != MQTTASYNC_SUCCESS )
             qDebug() <<  "Error from MQTTAsync_send: " << MQTTAsync_strerror(rc);
 
-       free(buffer);
-   }
+        free(buffer);
+    }
 
 }
-int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
+int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos,int retained)
 {
+    if(!m_bConnect)
+        return -1;
+
     qDebug() << "pubTopic " << pubTopic << topic << qos;
     MQTTBroker broker = m_pConfig->GetBroker();
     if (broker.appMode == 0)
@@ -435,7 +461,7 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
         pubmsg.payload = (void *)s1.c_str();
         pubmsg.payloadlen = s1.length();
         pubmsg.qos = qos;
-        pubmsg.retained = 1;
+        pubmsg.retained = retained;
 
         if ((rc = MQTTClient_publishMessage(m_Client, pubTopic.toStdString().c_str(), &pubmsg,  &token)) != MQTTCLIENT_SUCCESS)
         {
@@ -452,9 +478,9 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
         MQTTAsync_message pubmsg = MQTTAsync_message_initializer;
         int rc;
 
-//        opts.onSuccess = onSend;
-//        opts.onFailure = onSendFailure;
-//        opts.context = client;
+        //        opts.onSuccess = onSend;
+        //        opts.onFailure = onSendFailure;
+        //        opts.context = client;
         QTextCodec*t = QTextCodec::codecForName("Utf8");
         QString str=t->toUnicode(topic.toUtf8());
         string s1 = str.toStdString();
@@ -465,15 +491,17 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos)
 
         if ((rc = MQTTAsync_sendMessage(m_ClientAsync,  pubTopic.toStdString().c_str(), &pubmsg, &opts)) != MQTTCLIENT_SUCCESS)
         {
-              qDebug() << "Failed to subscribe, return code " <<  rc;
+            qDebug() << "Failed to subscribe, return code " <<  rc;
         }
     }
 
 }
 
 
-int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos)
+int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos,int retained)
 {
+    if(!m_bConnect)
+        return -1;
     qDebug() << "pubTopic " << pubTopic << qos;
     int rc = 0;
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
@@ -484,7 +512,8 @@ int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos)
     qDebug() <<"strlen " << strlen(msg) << pubmsg.payloadlen;
 
     pubmsg.qos = qos;
-    pubmsg.retained = 0;
+    pubmsg.retained = retained;
+
 
 
 

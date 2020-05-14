@@ -60,17 +60,18 @@ public:
  static volatile MQTTClient_deliveryToken deliveredtoken;
  static CMqttEngine* m_selfEngine;// 自身
 
- int PublishMessage(QString pubTopic,QString topic,int qos);
+ int PublishMessage(QString pubTopic,QString topic,int qos,int retained);
 
- int PublishJsonMessage(QString pubTopic, char *msg, int qos);
+ int PublishJsonMessage(QString pubTopic, char *msg, int qos,int retained);
 
 
- int PublishSendMessage(QString pubTopic, QString topic, int qos);
+ int PublishSendMessage(QString pubTopic, QString topic, int qos,int retained);
 private:
     CMqttConfig* m_pConfig;
     MQTTClient m_Client;
     QVector<QString> m_vTopic;// 主题
     MQTTAsync m_ClientAsync;
+    bool m_bConnect;
 };
 
 
