@@ -20,6 +20,10 @@ public:
     void Init();
 
     void SetStatText(QString str, QString color = "black");
+signals:
+    void sig_RecvAddText(QString);
+private slots:
+    void RecvAddText(QString str);
 private slots:
     void msgArrvd(CMqttMessage* mess);
     void msgConnLost();
@@ -73,6 +77,7 @@ private:
     bool m_bConnect;// 连接
     QString m_SendfileName;
     QString m_appFileName;
+    int m_iFileShardSize;// 设置分片大小
 };
 
 #endif // WIDGET_H

@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include "mqtt/pubsub_opts.h"
+#include <QJsonArray>
 
 enum scmdtype{
     CMD_S2C_CONNECT = 0x10,    //服务收到连接tcp信息，向client发送连接命令
@@ -72,12 +73,15 @@ Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget),
     m_pMqtt(nullptr),
-    m_bConnect(false)
+    m_bConnect(false),
+    m_iFileShardSize(1024*500)
 {
     ui->setupUi(this);
 
     m_appFileName = QCoreApplication::applicationDirPath();
     Init();
+    connect(this,SIGNAL(sig_RecvAddText(QString)),this,SLOT(RecvAddText(QString)));
+
 }
 
 Widget::~Widget()
@@ -108,13 +112,14 @@ void Widget::msgArrvd(CMqttMessage* mess)
     // 解析json
     QJsonParseError error;
     QJsonDocument document = QJsonDocument::fromJson(mess->message.toUtf8(), &error);
+
     if(QJsonParseError::NoError == error.error)
     {
-        qDebug() << " recv : topic 1111111111" ;
         qDebug() << " recv : topic "<< mess->topic << ", message:" << mess->message << "len : " << mess->topicLen;
 
         //map
         QVariantMap map = document.toVariant().toMap();
+
         int type = -1;
         if(map.contains("type"))
         {
@@ -140,30 +145,50 @@ void Widget::msgArrvd(CMqttMessage* mess)
             break;
         case (int)CMD_S2C_DOWNFILE:
         {
-            QString filename;
-            if(map.contains("fileName"))
+
+            QJsonObject o2(document.object());
+
+            QJsonArray databyte2 = o2.value("data").toArray();
+            QJsonValue databyte =  databyte2.first();
+
+            if (!databyte.isObject())
             {
-                filename = map["fileName"].toString();
-                qDebug() << filename;
+                break;
+            }
+            QJsonObject data(databyte.toObject());
+
+            QString fileName = data.take("fileName").toString();
+
+            QString fileId = data.take("fileID").toString();
+            int fileCount2 = data.take("fileCount").toInt();
+
+            int fileIndex2 = data.take("fileIndex").toInt();
+            //            auto fileSize2 = data.take("fileSize").toVariant();
+
+            qDebug() << "fileId" << fileId<<"fileCount2 " << fileCount2;
+            //            << fileIndex2 <<fileSize2 << "fileSize2";
+
+            QString file1 = data.take("fileData").toString();
+            QByteArray arr;
+            arr.append(Base64::decode(file1));
+            dir.mkdir(strOutPath +fileId);
+
+            QFile file(strOutPath +fileId +"/"+ fileName);
+            bool isOk = file.open(QFile::Append);
+            if (!isOk) {
+                qDebug() <<"file : no ";
+                return;
+            }
+            file.write(arr);
+            file.close();
+            ui->plainTextEdit_3->appendPlainText(fileId +"/"+ fileName +",接收进度为 "  + QString::number(fileIndex2) +'/' +QString::number(fileCount2) );
+
+            if(fileCount2 == fileIndex2)
+            {
+                ui->plainTextEdit_3->appendPlainText(fileId +"/"+ fileName +",接收成功");
+                qDebug() << "接收成功";
             }
 
-            if(map.contains("data"))
-            {
-                QString file1 = map["data"].toString();
-                //            g_aList.append(file);
-                qDebug() << file1;
-                QByteArray arr;
-                arr.append(Base64::decode(file1));
-                QFile file(strOutPath + filename);//
-                bool isOk = file.open(QFile::Append);
-                if (!isOk) {
-                    qDebug() <<"file : no ";
-                    return;
-                }
-                file.write(arr);
-                file.close();
-                //             g_aList.clear();
-            }
             break;
         }
         default:
@@ -377,6 +402,11 @@ void Widget::on_pushButton_4_clicked()
 
 }
 
+void Widget::RecvAddText(QString str)
+{
+        ui->plainTextEdit_3->appendPlainText(str);
+}
+
 void Widget::on_pushButton_7_clicked()
 {
     if (m_Broker.appMode == 0)
@@ -399,6 +429,22 @@ void Widget::on_pushButton_7_clicked()
         }
         QFileInfo fileinfo;
         fileinfo = QFileInfo(m_SendfileName);
+        qint64 size = fileinfo.size();
+
+        int count = size /(1024*500);
+        int count1 = size %(1024*500);
+        if(count1 > 0)
+            count++;
+        qDebug() <<"文件大小 size : " <<size <<"发送次数 "<< count;
+
+        QDateTime time = QDateTime::currentDateTime();   //获取当前时间
+        int timeT = time.toTime_t();
+        qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+        int irand =  qrand() % (99999 - 10000) + 10000;
+
+        QString fileId = QString::number(timeT)+'_'+QString::number(irand);
+
+
         QString file_name = fileinfo.fileName();
 
         QFile file(m_SendfileName);//
@@ -413,6 +459,7 @@ void Widget::on_pushButton_7_clicked()
         QString pubTopoc = ui->public_topic_lineEdit_2->text();
         qDebug() << pubTopoc;
         int index =  ui->comboBox_5->currentIndex();
+        int check = ui->checkBox->isChecked()== true ?1:0;
 
         // 读文件
         int len = 0;
@@ -426,28 +473,40 @@ void Widget::on_pushButton_7_clicked()
             if(len == 0)
             {
                 qDebug() << "file : size 0";
+                if(count == num)
+                   emit RecvAddText(fileId +"/"+ file_name +",发送完成 "  + QString::number(num) +'/' +QString::number(count) );
                 break;
             }
             num++;
-            qDebug() <<"file : size [ " << GetFileSize(len) << num;
+            qDebug() <<"file : size [ " << GetFileSize(len) << "发送次数 " << num;
             QString str = Base64::encode(array);
+
+            QJsonArray arr;
+
+            QJsonObject o
+            {
+                { "fileID", fileId},
+                { "fileName", file_name},//发送的文件名
+                { "fileSize", size},// 文件大小
+                { "fileCount", count},// 当前的传输的总次数
+                { "fileIndex", num},// 当前传输的第几次
+                { "fileData", str}
+
+            };
+            QJsonValue v(o);
+            arr.append(v);
 
             QJsonObject json
             {
                 { "type", CMD_S2C_DOWNFILE },
-                { "fileName", file_name},
-                { "fileName1", QString::number(num)},
-
-                { "data", str}
+                { "data", arr }
             };
-            num++;
 
             QJsonDocument document;
             document.setObject(json);
             QByteArray barr = document.toJson(QJsonDocument::Compact);
 
             qDebug() <<"barr size: [ "  << GetFileSize(barr.size());
-            int check = ui->checkBox->isChecked()== true ?1:0;
             QThread::msleep(10);// 休息一段时间
             int ret = m_pMqtt->PublishJsonMessage(pubTopoc,barr.data(),index,check);
             if(ret != 0)
@@ -455,8 +514,10 @@ void Widget::on_pushButton_7_clicked()
                 qDebug() <<"m_pMqtt push " << ret;
                 return;
             }
+            emit RecvAddText(fileId +"/"+ file_name +",已发送 "  + QString::number(num) +'/' +QString::number(count) );// 阻塞暂定
         }
         while(1);
+
         SetStatText("发送文件成功");
         qDebug() <<"m_pMqtt push 发送文件成功 : ";
 

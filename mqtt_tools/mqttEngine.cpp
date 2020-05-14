@@ -502,7 +502,7 @@ int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos,int retai
 {
     if(!m_bConnect)
         return -1;
-    qDebug() << "pubTopic " << pubTopic << qos;
+//    qDebug() << "pubTopic " << pubTopic << qos;
     int rc = 0;
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     MQTTClient_deliveryToken token;
