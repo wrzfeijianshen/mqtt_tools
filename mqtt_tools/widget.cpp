@@ -555,6 +555,7 @@ void Widget::on_pushButton_8_clicked()
 
 void Widget::on_comboBox_6_currentIndexChanged(const QString &arg1)
 {
+Q_UNUSED(arg1);
     int index =  ui->comboBox_6->currentIndex();
     m_Broker.appMode = index;
     m_pMqtt->GetConfig()->SetBroker(m_Broker);
@@ -562,6 +563,7 @@ void Widget::on_comboBox_6_currentIndexChanged(const QString &arg1)
 
 void Widget::on_comboBox_2_currentIndexChanged(int index)
 {
+    Q_UNUSED(index);
     // 下次收到后会转换
 }
 

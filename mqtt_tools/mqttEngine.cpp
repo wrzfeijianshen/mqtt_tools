@@ -15,108 +15,6 @@ CMqttEngine* CMqttEngine::m_selfEngine = nullptr;
 volatile MQTTClient_deliveryToken CMqttEngine::deliveredtoken = 0;
 
 
-#ifdef _WIN32
-#include <windows.h>
-
-string GbkToUtf8(const char *src_str)
-{
-    int len = MultiByteToWideChar(CP_ACP, 0, src_str, -1, NULL, 0);
-    wchar_t* wstr = new wchar_t[len + 1];
-    memset(wstr, 0, len + 1);
-    MultiByteToWideChar(CP_ACP, 0, src_str, -1, wstr, len);
-    len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL);
-    char* str = new char[len + 1];
-    memset(str, 0, len + 1);
-    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, len, NULL, NULL);
-    string strTemp = str;
-    if (wstr) delete[] wstr;
-    if (str) delete[] str;
-    return strTemp;
-}
-
-string Utf8ToGbk(const char *src_str)
-{
-    int len = MultiByteToWideChar(CP_UTF8, 0, src_str, -1, NULL, 0);
-    wchar_t* wszGBK = new wchar_t[len + 1];
-    memset(wszGBK, 0, len * 2 + 2);
-    MultiByteToWideChar(CP_UTF8, 0, src_str, -1, wszGBK, len);
-    len = WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, NULL, 0, NULL, NULL);
-    char* szGBK = new char[len + 1];
-    memset(szGBK, 0, len + 1);
-    WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, szGBK, len, NULL, NULL);
-    string strTemp(szGBK);
-    if (wszGBK) delete[] wszGBK;
-    if (szGBK) delete[] szGBK;
-    return strTemp;
-}
-#else
-#include <iconv.h>
-
-int GbkToUtf8(char *str_str, size_t src_len, char *dst_str, size_t dst_len)
-{
-    iconv_t cd;
-    char **pin = &str_str;
-    char **pout = &dst_str;
-
-    cd = iconv_open("utf8", "gbk");
-    if (cd == 0)
-        return -1;
-    memset(dst_str, 0, dst_len);
-    if (iconv(cd, pin, &src_len, pout, &dst_len) == -1)
-        return -1;
-    iconv_close(cd);
-    *pout = '\0';
-
-    return 0;
-}
-
-int Utf8ToGbk(char *src_str, size_t src_len, char *dst_str, size_t dst_len)
-{
-    iconv_t cd;
-    char **pin = &src_str;
-    char **pout = &dst_str;
-
-    cd = iconv_open("gbk", "utf8");
-    if (cd == 0)
-        return -1;
-    memset(dst_str, 0, dst_len);
-    if (iconv(cd, pin, &src_len, pout, &dst_len) == -1)
-        return -1;
-    iconv_close(cd);
-    *pout = '\0';
-
-    return 0;
-}
-
-
-#endif
-
-QString GBK2UTF8(const QString &str)
-{
-    QTextCodec *utf8 = QTextCodec::codecForName("UTF-8");
-    return utf8->toUnicode(str.toUtf8());
-}
-
-QString UTF82GBK(const QString &str)
-{
-    QTextCodec *gbk = QTextCodec::codecForName("GB18030");
-    return gbk->toUnicode(str.toLocal8Bit());
-}
-
-std::string GBK2UTF8(std::string &str)
-{
-    QString temp = QString::fromLocal8Bit(str.c_str());
-    std::string ret = temp.toUtf8().data();
-    return ret;
-}
-
-std::string UTF82GBK(std::string &str)
-{
-    QString temp = QString::fromUtf8(str.c_str());
-    std::string ret = temp.toLocal8Bit().data();
-    return ret;
-}
-
 CMqttEngine::CMqttEngine():
     m_pConfig(nullptr),
     m_Client(nullptr),
@@ -134,6 +32,8 @@ CMqttEngine::~CMqttEngine()
 
 void CMqttEngine::Delivered(void *context, MQTTClient_deliveryToken dt)
 {
+    Q_UNUSED(context);
+
     qDebug() << "Message with token value  delivery confirmed" <<  dt;
     deliveredtoken = dt;
 }
@@ -144,7 +44,15 @@ void CMqttEngine::ConnLost(void *context, char *cause)
     qDebug() << "\nConnection lost";
     qDebug() << "     cause: "<<cause;
 
-    emit GetInstance()->sig_msgConnLost();
+    CMqttEngine* pEngine =(CMqttEngine*)context;
+    if(pEngine != nullptr)
+    {
+        emit pEngine->sig_msgConnLost();// 这种便是回调中传入的void*的好处了
+    }
+    else
+    {
+        emit GetInstance()->sig_msgConnLost(); // 这种只适合单例模式.不能够区分这个函数是谁进行调用的.
+    }
 }
 
 
@@ -165,13 +73,23 @@ int CMqttEngine::MsgArrvd(void *context, char *topicName, int topicLen, MQTTClie
 
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
-    emit GetInstance()->sig_msgArrvd(mess);
+    CMqttEngine* pEngine =(CMqttEngine*)context;
+    if(pEngine != nullptr)
+    {
+        emit pEngine->sig_msgArrvd(mess);// 这种便是回调中传入的void*的好处了
+    }
+    else
+    {
+        emit GetInstance()->sig_msgArrvd(mess);// 这种只适合单例模式.不能够区分这个函数是谁进行调用的.
+    }
     return 1;
 }
 
 
 void CMqttEngine::DeliveredAsync(void* context, MQTTAsync_token token)
 {
+    Q_UNUSED(context);
+
     qDebug() << "Message with token value  delivery confirmed" <<  token;
     deliveredtoken = token;
 }
@@ -182,7 +100,15 @@ void CMqttEngine::ConnLostAsync(void *context, char *cause)
     qDebug() << "\nConnection lost";
     qDebug() << "     cause: "<<cause;
 
-    emit GetInstance()->sig_msgConnLost();
+    CMqttEngine* pEngine =(CMqttEngine*)context;
+    if(pEngine != nullptr)
+    {
+        emit pEngine->sig_msgConnLost();
+    }
+    else
+    {
+        emit GetInstance()->sig_msgConnLost();
+    }
 }
 
 int CMqttEngine::MsgArrvdAsync(void* context, char* topicName, int topicLen, MQTTAsync_message* message)
@@ -202,13 +128,24 @@ int CMqttEngine::MsgArrvdAsync(void* context, char* topicName, int topicLen, MQT
 
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
-    emit GetInstance()->sig_msgArrvd(mess);
+
+    CMqttEngine* pEngine =(CMqttEngine*)context;
+    if(pEngine != nullptr)
+    {
+        emit pEngine->sig_msgArrvd(mess);// 这种便是回调中传入的void*的好处了
+    }
+    else
+    {
+        emit GetInstance()->sig_msgArrvd(mess);// 这种只适合单例模式.不能够区分这个函数是谁进行调用的.
+    }
+
     return 1;
 }
 
 void CMqttEngine::onCallbackConnectAsync(void* context, MQTTAsync_successData* response)
 {
-
+    Q_UNUSED(context);
+    Q_UNUSED(response);
 }
 
 int CMqttEngine::Connect()
@@ -232,7 +169,7 @@ int CMqttEngine::Connect()
 
         //typedef void MQTTClient_connectionLost(void* context, char* cause);
 
-        if ((rc = MQTTClient_setCallbacks(m_Client, NULL, &CMqttEngine::ConnLost, CMqttEngine::MsgArrvd, CMqttEngine::Delivered)) != MQTTCLIENT_SUCCESS)
+        if ((rc = MQTTClient_setCallbacks(m_Client, (CMqttEngine*)this, &CMqttEngine::ConnLost, CMqttEngine::MsgArrvd, CMqttEngine::Delivered)) != MQTTCLIENT_SUCCESS)
         {
             qDebug() << "Failed to set callbacks, return code" <<  rc ;
             return rc;
@@ -251,9 +188,9 @@ int CMqttEngine::Connect()
     else if (broker.appMode == 1)
     {
         MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
-        MQTTAsync_disconnectOptions disc_opts = MQTTAsync_disconnectOptions_initializer;
+        //        MQTTAsync_disconnectOptions disc_opts = MQTTAsync_disconnectOptions_initializer;
+
         int rc;
-        int ch;
 
         QString addr = "tcp://" + broker.addr+":"+ QString::number(broker.port);
         if ((rc = MQTTAsync_create(&m_ClientAsync, addr.toStdString().c_str(), broker.id.toStdString().c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL))
@@ -281,9 +218,10 @@ int CMqttEngine::Connect()
         }
         m_bConnect = true;
 
-        return 0;
 
     }
+    return 0;
+
 }
 
 void CMqttEngine::Destroy()
@@ -341,7 +279,7 @@ int CMqttEngine::SetSubscribe(QString topic,int qos)
         }
 
     }
-
+    return 0;
 }
 
 
@@ -382,7 +320,7 @@ int CMqttEngine::SetUnSubscribe(QString topic)
 
         return rc;
     }
-
+    return 0;
 }
 
 char* readfile(int* data_len,const char* filename)
@@ -440,7 +378,7 @@ int CMqttEngine::PublishSendMessage(QString pubTopic,QString topic,int qos,int r
 
         free(buffer);
     }
-
+    return 0;
 }
 int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos,int retained)
 {
@@ -494,6 +432,7 @@ int CMqttEngine::PublishMessage(QString pubTopic,QString topic,int qos,int retai
             qDebug() << "Failed to subscribe, return code " <<  rc;
         }
     }
+    return 0;
 
 }
 
@@ -502,7 +441,7 @@ int CMqttEngine::PublishJsonMessage(QString pubTopic,char *msg,int qos,int retai
 {
     if(!m_bConnect)
         return -1;
-//    qDebug() << "pubTopic " << pubTopic << qos;
+    //    qDebug() << "pubTopic " << pubTopic << qos;
     int rc = 0;
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     MQTTClient_deliveryToken token;
