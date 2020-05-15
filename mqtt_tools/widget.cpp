@@ -14,6 +14,7 @@
 #include <QFileDialog>
 #include "mqtt/pubsub_opts.h"
 #include <QJsonArray>
+#include <QUuid>
 
 enum scmdtype{
     CMD_S2C_CONNECT = 0x10,    //服务收到连接tcp信息，向client发送连接命令
@@ -572,7 +573,6 @@ void Widget::on_comboBox_4_currentIndexChanged(int index)
     // 选择json串,清空内容
     if ( index == 1)
     {
-
         QJsonObject json
         {
             { "type", 1 },
@@ -600,4 +600,34 @@ void Widget::on_pushButton_10_clicked()
     }
     return ;
     qDebug() << "发送完毕";
+}
+QString getRandomString(int length)
+{
+    qsrand(QDateTime::currentMSecsSinceEpoch());//为随机值设定一个seed
+
+    const char chrs[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    int chrs_size = sizeof(chrs);
+
+    char* ch = new char[length + 1];
+    memset(ch, 0, length + 1);
+    int randomx = 0;
+    for (int i = 0; i < length; ++i)
+    {
+        randomx= rand() % (chrs_size - 1);
+        ch[i] = chrs[randomx];
+    }
+
+    QString ret(ch);
+    delete[] ch;
+    return ret;
+}
+
+void Widget::on_pushButton_11_clicked()
+{
+//    QUuid id = QUuid::createUuid();// 或者
+//    QString = id.toString();
+
+    QString irand = getRandomString(8) + "_"+getRandomString(6);
+
+    ui->id_lineEdit->setText(irand);
 }

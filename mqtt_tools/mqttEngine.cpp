@@ -174,7 +174,8 @@ int CMqttEngine::Connect()
             qDebug() << "Failed to set callbacks, return code" <<  rc ;
             return rc;
         }
-
+//        conn_opts.username =broker.user.toStdString().c_str();
+//        conn_opts.password =broker.pwd.toStdString().c_str();
         conn_opts.keepAliveInterval = 0;
         conn_opts.cleansession = 1;
         if ((rc = MQTTClient_connect(m_Client, &conn_opts)) != MQTTCLIENT_SUCCESS)
