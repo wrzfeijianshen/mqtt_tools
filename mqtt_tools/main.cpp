@@ -1,7 +1,7 @@
 #include "widget.h"
 #include <QApplication>
 
-const QString g_title = "1.0.511";
+const QString g_title = "1.0.526";
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);

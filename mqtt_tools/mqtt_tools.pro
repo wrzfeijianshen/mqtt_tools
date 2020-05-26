@@ -24,6 +24,8 @@ CONFIG(debug, debug|release) {
     UI_DIR = $$OBJECTS_DIR/ui/
 }
 
+# http://www.icosky.com/iconset/aqua-smiles-icons/
+RC_ICONS = Dazzled.ico
 
 SOURCES += main.cpp\
         widget.cpp \
