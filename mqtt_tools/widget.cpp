@@ -12,7 +12,6 @@
 #include <string>
 #include <QFile>
 #include <QFileDialog>
-#include "mqtt/pubsub_opts.h"
 #include <QJsonArray>
 #include <QUuid>
 

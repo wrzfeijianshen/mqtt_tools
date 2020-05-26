@@ -5,11 +5,19 @@
 #endif
 #include <QObject>
 
-#include <mqtt/MQTTClient.h>
 #include "mqttConfig.h"
 #include <QVector>
-#include <mqtt/MQTTAsync.h>
-#include <mqtt/pubsub_opts.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    #include <mqtt/MQTTAsync.h>
+    #include <mqtt/pubsub_opts.h>
+    #include <mqtt/MQTTClient.h>
+    #include <mqtt/pubsub_opts.h>
+#ifdef __cplusplus
+}
+#endif
 
 typedef struct _tCMqttMessage
 {
@@ -23,7 +31,7 @@ typedef struct _tCMqttMessage
 
 class CMqttEngine: public QObject
 {
-        Q_OBJECT
+    Q_OBJECT
 
 public:
     CMqttEngine();
@@ -45,7 +53,7 @@ public:
     static void DeliveredAsync(void* context, MQTTAsync_token token);
     static int MsgArrvdAsync(void* context, char* topicName, int topicLen, MQTTAsync_message* message);
 
-     static void onCallbackConnectAsync(void *context, MQTTAsync_successData *response);
+    static void onCallbackConnectAsync(void *context, MQTTAsync_successData *response);
 
 
     static CMqttEngine* GetInstance()
@@ -53,19 +61,19 @@ public:
         return m_selfEngine;
     }
 signals:
-     void sig_msgArrvd(CMqttMessage* message);
-     void sig_msgConnLost();
+    void sig_msgArrvd(CMqttMessage* message);
+    void sig_msgConnLost();
 
 public:
- static volatile MQTTClient_deliveryToken deliveredtoken;
- static CMqttEngine* m_selfEngine;// 自身
+    static volatile MQTTClient_deliveryToken deliveredtoken;
+    static CMqttEngine* m_selfEngine;// 自身
 
- int PublishMessage(QString pubTopic,QString topic,int qos,int retained);
+    int PublishMessage(QString pubTopic,QString topic,int qos,int retained);
 
- int PublishJsonMessage(QString pubTopic, char *msg, int qos,int retained);
+    int PublishJsonMessage(QString pubTopic, char *msg, int qos,int retained);
 
 
- int PublishSendMessage(QString pubTopic, QString topic, int qos,int retained);
+    int PublishSendMessage(QString pubTopic, QString topic, int qos,int retained);
 private:
     CMqttConfig* m_pConfig;
     MQTTClient m_Client;

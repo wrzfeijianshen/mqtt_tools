@@ -6,7 +6,6 @@
 #include <string>
 #include <QByteArray>
 #include <QTextCodec>
-#include <mqtt/pubsub_opts.h>
 
 using namespace std;
 
@@ -212,6 +211,9 @@ int CMqttEngine::Connect()
         conn_opts.onSuccess = &CMqttEngine::onCallbackConnectAsync;
         //        conn_opts.onFailure = onConnectFailure;
         conn_opts.context = m_ClientAsync;
+
+        conn_opts.username =broker.user.toStdString().c_str();
+        conn_opts.password =broker.pwd.toStdString().c_str();
         if ((rc = MQTTAsync_connect(m_ClientAsync, &conn_opts)) != MQTTASYNC_SUCCESS)
         {
             qDebug() << "connect return code" <<  rc;
